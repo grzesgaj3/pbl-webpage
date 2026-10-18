@@ -141,7 +141,6 @@ async function refreshHealth() {
   if (!refs.healthPill) return;
   try {
     const info = await health();
-    apiInfo = info;
     let tone = "ok";
     let label = `API ${(info && info.version) || ""}`.trim();
     let note = "połączenie OK";
