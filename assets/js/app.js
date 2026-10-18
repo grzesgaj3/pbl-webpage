@@ -6,13 +6,10 @@ import { health, healthReady, listCommands } from "./api.js";
 import { renderLogin } from "./views/login.js";
 
 const ROUTES = {
-  dashboard: { title: "Pulpit", sub: "Przegląd sieci deszczomierzy", icon: "dashboard", load: () => import("./views/dashboard.js") },
-  measurements: { title: "Pomiary", sub: "Zarejestrowane opady", icon: "droplet", load: () => import("./views/measurements.js") },
-  commands: { title: "Komendy", sub: "Kolejka czyszczenia deszczomierzy", icon: "send", load: () => import("./views/commands.js") },
-  bridges: { title: "Mostki i sensory", sub: "Stacje odbiorcze i deszczomierze", icon: "radio", load: () => import("./views/bridges.js") },
-  settings: { title: "Ustawienia", sub: "Połączenie, wygląd, sesja", icon: "sliders", load: () => import("./views/settings.js") },
+  overview: { title: "Wykresy", sub: "Opady z poszczególnych sensorów", icon: "droplet", load: () => import("./views/overview.js") },
+  cleaning: { title: "Czyszczenie", sub: "Żądania czyszczenia deszczomierzy", icon: "send", load: () => import("./views/cleaning.js") },
 };
-const DEFAULT_ROUTE = "dashboard";
+const DEFAULT_ROUTE = "overview";
 
 const app = document.getElementById("app");
 let current = null; // { route, view }
@@ -192,7 +189,7 @@ function navLink(route) {
     icon(meta.icon),
     h("span", {}, meta.title)
   );
-  if (route === "commands") {
+  if (route === "cleaning") {
     link.append(h("span", { class: "nav__badge", hidden: true }));
   }
   return link;
@@ -205,7 +202,7 @@ function renderShell() {
     const link = navLink(route);
     refs.navLinks.push(link);
     nav.append(link);
-    if (route === "commands") refs.cmdBadge = link.querySelector(".nav__badge");
+    if (route === "cleaning") refs.cmdBadge = link.querySelector(".nav__badge");
   }
 
   const rail = h(
@@ -226,7 +223,7 @@ function renderShell() {
     )
   );
 
-  refs.title = h("h1", { id: "page-title" }, "Pulpit");
+  refs.title = h("h1", { id: "page-title" }, "Wykresy");
   refs.sub = h("p", { id: "page-sub", class: "topbar__sub" }, "");
   refs.healthPill = h("span", { class: "pill", dataset: { tone: "" } }, h("span", { class: "dot" }), "…");
   refs.themeBtn = h(
