@@ -7,62 +7,81 @@ const LIMIT = 1000; // prototyp: bierzemy pierwszą porcję API
 
 export function createView() {
   // --- Formularz ---------------------------------------------------------
-  const bridgeSel = h("select", { id: "clean-bridge", onchange: () => loadSensors(bridgeSel.value) });
-  const sensorSel = h("select", { id: "clean-sensor" });
+  const bridgeSel = h("select", {
+    id: "clean-bridge",
+    class: "form-select",
+    onchange: () => loadSensors(bridgeSel.value),
+  });
+  const sensorSel = h("select", { id: "clean-sensor", class: "form-select" });
   const submit = h(
     "button",
-    { class: "btn btn--primary", type: "submit" },
+    { class: "btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2", type: "submit" },
     icon("send"),
     "Wyślij żądanie czyszczenia"
   );
-  const formError = h("p", { class: "form-error", hidden: true });
+  const formError = h("p", { class: "alert alert-danger py-2 small mt-3 mb-0", hidden: true });
 
   const form = h(
     "form",
     { onsubmit: onSubmit },
     h(
       "div",
-      { class: "clean-form" },
-      h("div", { class: "field" }, h("label", { for: "clean-bridge" }, "Mostek"), bridgeSel),
-      h("div", { class: "field" }, h("label", { for: "clean-sensor" }, "Sensor"), sensorSel),
-      h("div", { class: "field field--action" }, submit)
+      { class: "row g-3 align-items-end" },
+      h(
+        "div",
+        { class: "col-12 col-md-5" },
+        h("label", { class: "form-label", for: "clean-bridge" }, "Mostek"),
+        bridgeSel
+      ),
+      h(
+        "div",
+        { class: "col-12 col-md-4" },
+        h("label", { class: "form-label", for: "clean-sensor" }, "Sensor"),
+        sensorSel
+      ),
+      h("div", { class: "col-12 col-md-3" }, submit)
     ),
     formError
   );
 
-  const formPanel = h(
+  const formCard = h(
     "section",
-    { class: "panel" },
+    { class: "card" },
     h(
       "div",
-      { class: "panel__head" },
-      h("h2", {}, icon("send"), "Zleć czyszczenie"),
-      h("span", { class: "panel__hint" }, "czyszczenie deszczomierza")
+      { class: "card-header d-flex align-items-center gap-2" },
+      icon("send", "text-primary"),
+      h("span", { class: "fw-semibold" }, "Wyślij żądanie czyszczenia")
     ),
-    h("div", { class: "panel__body" }, form)
+    h("div", { class: "card-body" }, form)
   );
 
   // --- Historia ----------------------------------------------------------
-  const refreshHint = h("span", { class: "panel__hint" });
+  const refreshHint = h("span", { class: "text-body-secondary small" });
   const refreshBtn = h(
     "button",
-    { class: "iconbtn", type: "button", "aria-label": "Odśwież historię", title: "Odśwież", onclick: () => loadHistory() },
+    { class: "btn btn-outline-secondary btn-sm", type: "button", "aria-label": "Odśwież historię", title: "Odśwież", onclick: () => loadHistory() },
     icon("refresh")
   );
-  const historyBox = h("div", { class: "panel__body panel__body--flush" }, skeleton(5, 5));
-  const historyPanel = h(
+  const historyBox = h("div", { class: "card-body p-0" }, skeleton(5));
+  const historyCard = h(
     "section",
-    { class: "panel" },
+    { class: "card" },
     h(
       "div",
-      { class: "panel__head" },
-      h("h2", {}, icon("inbox"), "Historia żądań"),
-      h("div", { class: "panel__tools" }, refreshHint, refreshBtn)
+      { class: "card-header d-flex flex-wrap align-items-center justify-content-between gap-2" },
+      h(
+        "span",
+        { class: "d-flex align-items-center gap-2" },
+        icon("inbox", "text-primary"),
+        h("span", { class: "fw-semibold" }, "Historia żądań")
+      ),
+      h("div", { class: "d-flex align-items-center gap-2" }, refreshHint, refreshBtn)
     ),
     historyBox
   );
 
-  const el = h("div", { class: "view-enter" }, formPanel, historyPanel);
+  const el = h("div", { class: "vstack gap-3" }, formCard, historyCard);
 
   function showFormError(message) {
     formError.textContent = message;
@@ -117,7 +136,7 @@ export function createView() {
   }
 
   async function loadHistory() {
-    historyBox.replaceChildren(skeleton(5, 5));
+    historyBox.replaceChildren(h("div", { class: "p-3" }, skeleton(5)));
     try {
       const page = await listCommands({ limit: LIMIT });
       const items = page.items || [];
@@ -142,18 +161,19 @@ export function createView() {
         { key: "response", label: "Odpowiedź" },
       ],
       items.map((c) => ({
-        created: h("span", { class: "nowrap" }, fmtDateTime(c.created_at)),
-        bridge: h("span", { class: "mono muted" }, c.bridge_id),
+        created: h("span", { class: "text-nowrap" }, fmtDateTime(c.created_at)),
+        bridge: h("span", { class: "mono text-body-secondary" }, c.bridge_id),
         sensor: h("span", { class: "mono" }, c.sensor_id || "—"),
-        payload: h("span", { class: "chip mono" }, c.payload),
+        payload: h("code", { class: "mono" }, c.payload),
         status: statusBadge(c.status),
         response: c.responded_at
           ? h(
               "span",
-              { class: "nowrap" },
-              `${relTime(c.responded_at)}${c.response_note ? ` · ${c.response_note}` : ""}`
+              {},
+              h("span", { class: "text-nowrap" }, relTime(c.responded_at)),
+              c.response_note ? h("span", { class: "d-block text-body-secondary small" }, c.response_note) : null
             )
-          : h("span", { class: "muted" }, "—"),
+          : h("span", { class: "text-body-secondary" }, "—"),
       })),
       { emptyText: "Brak żądań czyszczenia." }
     );
