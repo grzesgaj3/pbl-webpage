@@ -1,20 +1,34 @@
-// Wykresy oparte na Chart.js ładowanym leniwie z CDN (tylko gdy widok go potrzebuje).
-const CDN = "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js";
+// Wykresy oparte na Chart.js, ładowanym leniwie z CDN (dopiero gdy widok go
+// potrzebuje). Razem z Chart.js dociągamy adapter osi czasu.
+const CDN_CHART = "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js";
+const CDN_ADAPTER =
+  "https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js";
+
 let loading = null;
 
+function script(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(src));
+    document.head.append(s);
+  });
+}
+
+/** Wczytuje Chart.js (i adapter dat) z CDN. Kolejne wywołania korzystają z cache. */
 export function loadChart() {
   if (window.Chart) return Promise.resolve(window.Chart);
   if (loading) return loading;
-  loading = new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = CDN;
-    s.async = true;
-    s.onload = () => (window.Chart ? resolve(window.Chart) : reject(new Error("Brak obiektu Chart.")));
-    s.onerror = () => {
-      loading = null;
-      reject(new Error("Nie udało się wczytać Chart.js z CDN. Sprawdź dostęp do internetu."));
-    };
-    document.head.append(s);
+  loading = (async () => {
+    await script(CDN_CHART);
+    if (!window.Chart) throw new Error("brak obiektu Chart");
+    await script(CDN_ADAPTER);
+    return window.Chart;
+  })().catch(() => {
+    loading = null;
+    throw new Error("Nie udało się wczytać Chart.js z CDN. Sprawdź dostęp do internetu.");
   });
   return loading;
 }
@@ -27,26 +41,31 @@ function cssVar(name, fallback = "#000") {
 export function themeColors() {
   return {
     accent: cssVar("--accent", "#0c6472"),
-    accentSoft: cssVar("--accent-soft", "#dcecef"),
     text: cssVar("--text", "#0b171c"),
     soft: cssVar("--text-soft", "#516369"),
     faint: cssVar("--text-faint", "#7b8c91"),
     line: cssVar("--line", "#d5e0de"),
     surface: cssVar("--surface", "#fff"),
-    ok: cssVar("--ok", "#1c7a53"),
-    warn: cssVar("--warn", "#9c620c"),
-    danger: cssVar("--danger", "#a83a29"),
-    info: cssVar("--info", "#2a6ea6"),
   };
 }
 
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MONO = (size = 11) => ({ family: "IBM Plex Mono", size });
+
+function hexA(hex, alpha) {
+  let h = String(hex).replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16);
+  if (!Number.isFinite(n)) return hex;
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
 
 function baseOptions(c) {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    animation: reduced() ? false : { duration: 420, easing: "easeOutQuart" },
+    animation: reduced() ? false : { duration: 380, easing: "easeOutQuart" },
+    interaction: { mode: "nearest", intersect: false },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -57,47 +76,113 @@ function baseOptions(c) {
         cornerRadius: 8,
         displayColors: false,
         titleFont: { family: "IBM Plex Sans", weight: "600" },
-        bodyFont: { family: "IBM Plex Mono" },
-      },
-    },
-    scales: {
-      x: {
-        grid: { display: false },
-        border: { color: c.line },
-        ticks: { color: c.faint, font: { family: "IBM Plex Mono", size: 11 }, maxRotation: 0, autoSkipPadding: 14 },
-      },
-      y: {
-        beginAtZero: true,
-        grid: { color: c.line, drawTicks: false },
-        border: { display: false },
-        ticks: { color: c.faint, font: { family: "IBM Plex Mono", size: 11 }, padding: 8 },
+        bodyFont: MONO(),
       },
     },
   };
 }
 
-function areaGradient(ctx, area, color) {
-  if (!area) return color;
-  const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  g.addColorStop(0, hexA(color, 0.85));
-  g.addColorStop(1, hexA(color, 0.12));
-  return g;
+const fmtMm = (v) => `${Number(v).toFixed(2).replace(".", ",")} mm`;
+const dtTip = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" });
+
+/**
+ * Wykres opadów jednego sensora w czasie.
+ * @param {HTMLCanvasElement} canvas
+ * @param {Array<{x:number,y:number}>} points
+ */
+export function sensorChart(canvas, points) {
+  const Chart = window.Chart;
+  const c = themeColors();
+  const many = points.length > 80;
+  const opts = baseOptions(c);
+  return new Chart(canvas, {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          data: points,
+          borderColor: c.accent,
+          backgroundColor: hexA(c.accent, 0.14),
+          fill: true,
+          borderWidth: 2,
+          tension: 0.28,
+          spanGaps: true,
+          pointRadius: many ? 0 : 2.5,
+          pointHoverRadius: 4,
+          pointBackgroundColor: c.accent,
+          pointBorderColor: c.surface,
+          pointBorderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      ...opts,
+      plugins: {
+        ...opts.plugins,
+        tooltip: {
+          ...opts.plugins.tooltip,
+          callbacks: {
+            title: (items) => (items.length ? dtTip.format(new Date(items[0].parsed.x)) : ""),
+            label: (item) => fmtMm(item.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: {
+            displayFormats: {
+              minute: "HH:mm",
+              hour: "HH:mm",
+              day: "dd.MM",
+              week: "dd.MM",
+              month: "MM.yy",
+              year: "yyyy",
+            },
+          },
+          grid: { display: false },
+          border: { color: c.line },
+          ticks: { color: c.faint, font: MONO(), maxRotation: 0, autoSkipPadding: 16 },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: c.line, drawTicks: false },
+          border: { display: false },
+          ticks: { color: c.faint, font: MONO(), padding: 8, callback: (v) => `${v} mm` },
+        },
+      },
+    },
+  });
 }
 
-function hexA(hex, alpha) {
-  let h = hex.replace("#", "");
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-  const n = parseInt(h, 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+export function destroyChart(chart) {
+  if (chart && typeof chart.destroy === "function") chart.destroy();
 }
 
-/** Dzienne opady — wykres słupkowy (bohater pulpitu). */
+// --- Wykresy pulpitu -----------------------------------------------------
+// Używane przez dotychczasowy widok pulpitu; znikną razem z nim.
+
+function catScales(c) {
+  return {
+    x: {
+      grid: { display: false },
+      border: { color: c.line },
+      ticks: { color: c.faint, font: MONO(), maxRotation: 0, autoSkipPadding: 14 },
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: c.line, drawTicks: false },
+      border: { display: false },
+      ticks: { color: c.faint, font: MONO(), padding: 8 },
+    },
+  };
+}
+
+/** Dzienne opady — wykres słupkowy. */
 export function rainfallChart(canvas, { labels, values }) {
   const Chart = window.Chart;
   const c = themeColors();
+  const opts = baseOptions(c);
   return new Chart(canvas, {
     type: "bar",
     data: {
@@ -106,7 +191,7 @@ export function rainfallChart(canvas, { labels, values }) {
         {
           label: "Opad (mm)",
           data: values,
-          backgroundColor: (ctx) => areaGradient(ctx.chart.ctx, ctx.chart.chartArea, c.accent),
+          backgroundColor: hexA(c.accent, 0.8),
           hoverBackgroundColor: c.accent,
           borderRadius: 4,
           maxBarThickness: 34,
@@ -114,16 +199,12 @@ export function rainfallChart(canvas, { labels, values }) {
       ],
     },
     options: {
-      ...baseOptions(c),
+      ...opts,
       plugins: {
-        ...baseOptions(c).plugins,
-        tooltip: {
-          ...baseOptions(c).plugins.tooltip,
-          callbacks: {
-            label: (item) => `${Number(item.parsed.y).toFixed(2).replace(".", ",")} mm`,
-          },
-        },
+        ...opts.plugins,
+        tooltip: { ...opts.plugins.tooltip, callbacks: { label: (i) => fmtMm(i.parsed.y) } },
       },
+      scales: catScales(c),
     },
   });
 }
@@ -132,6 +213,7 @@ export function rainfallChart(canvas, { labels, values }) {
 export function bridgeChart(canvas, { labels, values }) {
   const Chart = window.Chart;
   const c = themeColors();
+  const opts = baseOptions(c);
   return new Chart(canvas, {
     type: "bar",
     data: {
@@ -148,25 +230,25 @@ export function bridgeChart(canvas, { labels, values }) {
       ],
     },
     options: {
-      ...baseOptions(c),
+      ...opts,
       indexAxis: "y",
+      plugins: {
+        ...opts.plugins,
+        tooltip: { ...opts.plugins.tooltip, callbacks: { label: (i) => fmtMm(i.parsed.x) } },
+      },
       scales: {
         x: {
           beginAtZero: true,
           grid: { color: c.line, drawTicks: false },
           border: { display: false },
-          ticks: { color: c.faint, font: { family: "IBM Plex Mono", size: 11 }, padding: 8 },
+          ticks: { color: c.faint, font: MONO(), padding: 8 },
         },
         y: {
           grid: { display: false },
           border: { color: c.line },
-          ticks: { color: c.soft, font: { family: "IBM Plex Mono", size: 11 } },
+          ticks: { color: c.soft, font: MONO() },
         },
       },
     },
   });
-}
-
-export function destroyChart(chart) {
-  if (chart && typeof chart.destroy === "function") chart.destroy();
 }
