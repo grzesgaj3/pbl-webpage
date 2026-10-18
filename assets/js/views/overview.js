@@ -13,35 +13,45 @@ export function createView() {
   let charts = [];
 
   const rangeLabel = () => (RANGES.find((r) => r.id === range) || {}).label || "";
-  const buttons = RANGES.map((r) =>
-    h(
-      "button",
-      {
-        type: "button",
-        class: "rangebar__btn",
-        "aria-pressed": r.id === range ? "true" : "false",
-        dataset: { range: r.id },
+  const rangeControls = RANGES.map((r) => {
+    const id = `range-${r.id}`;
+    return [
+      h("input", {
+        type: "radio",
+        class: "btn-check",
+        name: "range",
+        id,
+        autocomplete: "off",
+        checked: r.id === range ? true : null,
         onclick: () => setRange(r.id),
-      },
-      r.label
-    )
-  );
+      }),
+      h("label", { class: "btn btn-outline-secondary", for: id }, r.label),
+    ];
+  });
 
   const rangebar = h(
     "div",
-    { class: "rangebar", role: "group", "aria-label": "Zakres czasu" },
-    h("span", { class: "rangebar__label" }, icon("clock"), "Zakres"),
-    h("div", { class: "rangebar__group" }, buttons)
+    { class: "d-flex flex-wrap align-items-center gap-2 mb-3" },
+    h(
+      "span",
+      { class: "text-body-secondary small d-inline-flex align-items-center gap-1" },
+      icon("clock"),
+      "Zakres"
+    ),
+    h(
+      "div",
+      { class: "btn-group btn-group-sm", role: "group", "aria-label": "Zakres czasu" },
+      rangeControls
+    )
   );
 
-  const grid = h("div", { class: "charts-grid" }, skeleton(4, 4));
-  const note = h("p", { class: "charts-note" });
-  const el = h("div", { class: "view-enter" }, rangebar, grid, note);
+  const grid = h("div", { class: "vstack gap-3" }, skeleton(3));
+  const note = h("p", { class: "text-body-secondary small mt-3 mb-0" });
+  const el = h("div", {}, rangebar, grid, note);
 
   function setRange(id) {
     if (id === range) return;
     range = id;
-    for (const b of buttons) b.setAttribute("aria-pressed", b.dataset.range === id ? "true" : "false");
     load();
   }
 
@@ -66,29 +76,35 @@ export function createView() {
     }
   }
 
+  function metaLine(sensor) {
+    const parts = [];
+    if (sensor.bridge_id) parts.push(h("span", {}, `mostek ${sensor.bridge_id}`));
+    parts.push(h("span", {}, `${fmtInt(sensor.measurement_count)} pomiarów`));
+    parts.push(
+      h("span", {}, sensor.last_measurement_at ? `ostatni ${relTime(sensor.last_measurement_at)}` : "brak odczytów")
+    );
+    return h("span", { class: "text-body-secondary small d-flex flex-wrap gap-3" }, parts);
+  }
+
   function card({ sensor, items, error }) {
-    const head = h(
+    const header = h(
       "div",
-      { class: "panel__head" },
-      h("h2", {}, icon("droplet"), h("span", { class: "mono" }, sensor.sensor_id)),
-      sensor.bridge_id ? h("span", { class: "panel__hint" }, `mostek ${sensor.bridge_id}`) : null
-    );
-    const body = h(
-      "div",
-      { class: "panel__body" },
+      { class: "card-header d-flex flex-wrap align-items-center justify-content-between gap-2" },
       h(
-        "div",
-        { class: "chart-meta" },
-        h("span", {}, icon("gauge"), `${fmtInt(sensor.measurement_count)} pomiarów`),
-        h(
-          "span",
-          {},
-          icon("clock"),
-          sensor.last_measurement_at ? `ostatni ${relTime(sensor.last_measurement_at)}` : "brak odczytów"
-        )
-      )
+        "span",
+        { class: "d-inline-flex align-items-center gap-2" },
+        icon("droplet", "text-primary"),
+        h("span", { class: "fw-semibold mono" }, sensor.sensor_id)
+      ),
+      metaLine(sensor)
     );
-    const section = h("section", { class: "panel chart-card", dataset: { sensor: sensor.sensor_id } }, head, body);
+    const body = h("div", { class: "card-body" });
+    const section = h(
+      "section",
+      { class: "card chart-card", dataset: { sensor: sensor.sensor_id } },
+      header,
+      body
+    );
 
     if (error) {
       body.append(stateBlock({ iconName: "alert", title: "Nie udało się pobrać danych", hint: error.message }));
@@ -99,8 +115,7 @@ export function createView() {
       body.append(stateBlock({ iconName: "cloud", title: "Brak pomiarów w tym zakresie" }));
       return section;
     }
-    const box = h("div", { class: "chart-box" }, h("canvas"));
-    body.append(box);
+    body.append(h("div", { class: "chart-box" }, h("canvas")));
     section.__points = points;
     return section;
   }
@@ -108,7 +123,7 @@ export function createView() {
   async function load() {
     const run = ++runId;
     destroyCharts();
-    grid.replaceChildren(skeleton(4, 4));
+    grid.replaceChildren(skeleton(3));
     note.textContent = "";
 
     let sensors;
@@ -126,11 +141,19 @@ export function createView() {
 
     if (!sensors.length) {
       grid.replaceChildren(
-        stateBlock({
-          iconName: "droplet",
-          title: "Brak zarejestrowanych sensorów",
-          hint: "Sensor pojawia się, gdy mostek zgłosi jego pierwszy pomiar.",
-        })
+        h(
+          "div",
+          { class: "card" },
+          h(
+            "div",
+            { class: "card-body" },
+            stateBlock({
+              iconName: "droplet",
+              title: "Brak zarejestrowanych sensorów",
+              hint: "Sensor pojawia się, gdy mostek zgłosi jego pierwszy pomiar.",
+            })
+          )
+        )
       );
       return;
     }
@@ -146,7 +169,7 @@ export function createView() {
     if (run !== runId) return;
 
     grid.replaceChildren(...results.map(card));
-    note.textContent = `Zakres: ${rangeLabel()} · po jednym wykresie na sensor (do ${fmtInt(LIMIT)} punktów każdy).`;
+    note.textContent = `Zakres: ${rangeLabel()}. Po jednym wykresie na sensor, do ${fmtInt(LIMIT)} punktów każdy.`;
     await draw();
     if (run !== runId) destroyCharts();
   }
