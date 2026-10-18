@@ -938,6 +938,26 @@ select {
   color: var(--text-faint);
 }
 
+/* --- Formularz czyszczenia ---------------------------------------------- */
+.clean-form {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+}
+.field--action {
+  display: flex;
+  align-items: flex-end;
+}
+.field--action .btn {
+  width: 100%;
+}
+.panel__tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .kv {
   display: grid;
   grid-template-columns: minmax(120px, 34%) 1fr;

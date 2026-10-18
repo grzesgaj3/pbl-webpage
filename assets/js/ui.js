@@ -110,8 +110,8 @@ export const epochToDate = (epochSec) => new Date(Number(epochSec) * 1000);
 // --- Odznaki -------------------------------------------------------------
 const STATUS_META = {
   PENDING: { label: "Oczekuje", kind: "warn" },
-  ACKNOWLEDGED: { label: "Potwierdzona", kind: "ok" },
-  REJECTED: { label: "Odrzucona", kind: "danger" },
+  ACKNOWLEDGED: { label: "Wykonano", kind: "ok" },
+  REJECTED: { label: "Odrzucono", kind: "danger" },
 };
 export function statusBadge(status) {
   const meta = STATUS_META[status] || { label: status || "—", kind: "plain" };
