@@ -154,7 +154,11 @@ export function openModal({ title, body, footer, wide = false, onClose } = {}) {
   );
   const backdrop = h("div", { class: "modal-backdrop fade show", onclick: () => close() });
   root.append(backdrop, modal);
-  document.body.classList.add("modal-open");
+
+  // Bootstrap 5.3 nie ma już klasy `modal-open` (blokadę przewijania robi jego
+  // JS), a my bundle'a nie ładujemy — więc blokujemy tło sami.
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
 
   function onKey(e) {
     if (e.key === "Escape") close();
@@ -170,7 +174,7 @@ export function openModal({ title, body, footer, wide = false, onClose } = {}) {
     document.removeEventListener("keydown", onKey);
     backdrop.remove();
     modal.remove();
-    document.body.classList.remove("modal-open");
+    document.body.style.overflow = prevOverflow;
     if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
     if (onClose) onClose();
   }
