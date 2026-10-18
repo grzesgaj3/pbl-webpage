@@ -55,6 +55,26 @@ przeglądarka zablokuje żądania (błąd „Failed to fetch").
   Oczekuje / Wykonano / Odrzucono.
 - Motyw jasny/ciemny, responsywność, dostępność (WCAG AA), `prefers-reduced-motion`.
 
+## Warstwa wizualna
+
+Wygląd opiera się w całości na **Bootstrapie 5.3** wciąganym z CDN (jsDelivr):
+
+- tylko arkusz CSS — **bez JS bundle'a** Bootstrapa. Zakładki to zwykłe linki
+  w `navbar`, a rozwijane elementy (modal potwierdzenia, alerty) obsługujemy
+  własnym, kilkunastoliniowym kodem z `assets/js/ui.js`;
+- motyw jasny/ciemny to atrybut `data-bs-theme` na `<html>` — ustawiany skryptem
+  w `<head>` (przed pierwszym malowaniem, żeby uniknąć mignięcia) i przełącznikiem
+  w prawym górnym rogu;
+- kolory wykresów Chart.js czytamy z tokenów Bootstrapa (`--bs-primary`,
+  `--bs-body-color`…), więc wykresy same dopasowują się do motywu;
+- plik [`assets/css/styles.css`](assets/css/styles.css) to tylko garść nadpisań:
+  rozmiar ikon SVG, wysokość kontenera wykresu i kropka stanu API. Reszta klas
+  pochodzi z Bootstrapa, np. `card`, `btn-group` + `btn-check`, `form-select`,
+  `table`, `badge`, `alert`.
+
+**Wymagany dostęp do internetu** — Bootstrap i Chart.js lecą z CDN, więc panel
+nie zadziała w sieci odciętej od świata (można je wtedy podmienić na pliki lokalne).
+
 ## Ograniczenia API i wynikające z nich decyzje
 
 - **`ack` / `reject` wymagają klucza mostka** (nie admina), dlatego panel tylko
@@ -111,7 +131,7 @@ python3 -m http.server 8080
 config.js                      # ← konfiguracja: adres API, ustawienia domyślne
 index.html                     # powłoka SPA
 assets/
-  css/styles.css               # design system (tokeny, komponenty, motywy)
+  css/styles.css               # nadpisania nad Bootstrapem (ikony, wykres)
   js/app.js                    # powłoka, routing, motyw, auto‑odświeżanie
   js/api.js                    # klient API (X-API-Key, koperta błędów)
   js/store.js                  # czyta config.js; klucz w sessionStorage
