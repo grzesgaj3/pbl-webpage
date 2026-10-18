@@ -143,21 +143,27 @@ async function refreshHealth() {
     const info = await health();
     apiInfo = info;
     let tone = "ok";
-    let label = `API ${info.version || ""}`.trim();
+    let label = `API ${(info && info.version) || ""}`.trim();
+    let note = "połączenie OK";
     try {
       await healthReady();
-    } catch {
+    } catch (err) {
       tone = "warn";
       label = "API · baza?";
+      note = `baza danych niedostępna (${err && err.status ? "HTTP " + err.status : (err && err.message) || "błąd"})`;
     }
     refs.healthPill.dataset.tone = tone;
     clear(refs.healthPill);
     refs.healthPill.append(h("span", { class: "dot" }), label);
-    refs.healthPill.title = `pbl-api ${info.version || ""} · ${new Date().toLocaleTimeString("pl-PL")}`;
-  } catch {
+    refs.healthPill.title = `pbl-api ${(info && info.version) || ""} · ${new Date().toLocaleTimeString("pl-PL")} · ${note}`;
+  } catch (err) {
+    const reason =
+      err && err.status ? `HTTP ${err.status} — ${err.message}` : (err && err.message) || "nieznany błąd";
     refs.healthPill.dataset.tone = "danger";
     clear(refs.healthPill);
     refs.healthPill.append(h("span", { class: "dot" }), "brak połączenia");
+    refs.healthPill.title = `Health check nieudany: ${reason}`;
+    console.warn("[STACJA] health check nieudany:", err);
   }
 }
 
