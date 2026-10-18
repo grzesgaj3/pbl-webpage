@@ -858,6 +858,86 @@ select {
   color: var(--text-faint);
 }
 
+/* --- Wybór zakresu + siatka wykresów (widok wykresów) ------------------ */
+.rangebar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.rangebar__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.rangebar__label svg {
+  width: 16px;
+  height: 16px;
+}
+.rangebar__group {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.rangebar__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
+}
+.rangebar__btn:hover {
+  color: var(--text);
+}
+.rangebar__btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.charts-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+.chart-card {
+  margin: 0;
+}
+.chart-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 14px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.chart-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-meta svg {
+  width: 15px;
+  height: 15px;
+}
+.charts-note {
+  margin: 16px 2px 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
 .kv {
   display: grid;
   grid-template-columns: minmax(120px, 34%) 1fr;
