@@ -3,10 +3,11 @@
 Statyczny panel administracyjno‑podglądowy dla
 [`pbl-api`](https://github.com/grzesgaj3/pbl-api) — sieci deszczomierzy LoRa.
 
-Panel pokazuje zarejestrowane opady, kolejkę komend czyszczenia, zestawienie
-mostków i sensorów, a także tworzy nowe komendy `clean`. Zbudowany jest w czystym
-HTML/CSS/JS (bez frameworka i bez build‑stepu), więc **na serwerze nie zużywa
-pamięci** — pliki serwuje nginx, a cała logika działa w przeglądarce.
+Panel ma dwie zakładki: **Wykresy** (po jednym wykresie opadów na każdy
+zarejestrowany sensor) oraz **Czyszczenie** (formularz żądania czyszczenia i
+historia żądań). Zbudowany jest w czystym HTML/CSS/JS (bez frameworka i bez
+build‑stepu), więc **na serwerze nie zużywa pamięci** — pliki serwuje nginx, a
+cała logika działa w przeglądarce.
 
 ## Założenia
 
@@ -45,29 +46,23 @@ przeglądarka zablokuje żądania (błąd „Failed to fetch").
 ## Funkcje
 
 - **Okno logowania** „Podaj API key admina" (klucz `ADMIN_API_KEY`).
-- **Pulpit** — odczyty zbiorcze (ostatni pomiar, sumy opadów, liczba mostków,
-  komendy oczekujące), wykres opadów dziennych i suma wg mostka, ostatnie pomiary.
-- **Pomiary** — filtry (`bridge_id`, `sensor_id`, zakres dat), paginacja offsetowa,
-  szczegóły wiersza, eksport CSV / JSON.
-- **Komendy** — filtry po statusie i mostku, tworzenie nowej komendy `clean`,
-  podgląd payloadu LoRa z kopiowaniem, eksport CSV.
-- **Mostki i sensory** — zestawienie wyprowadzone z danych (API nie udostępnia
-  `/bridges`), z przejściem do filtrowanych pomiarów.
-- **Ustawienia** — podgląd adresu API, motyw, interwał odświeżania, test połączenia,
-  wylogowanie.
+- **Wykresy** — siatka wykresów, po jednym na sensor z `GET /sensors`, z globalnym
+  wyborem zakresu: 12 h / 24 h / tydzień / miesiąc / całość (domyślnie 24 h).
+  Oś Y w mm, oś X to czas.
+- **Czyszczenie** — wybór mostka (`GET /bridges`) i sensora
+  (`GET /sensors?bridge_id=…`), wysłanie żądania czyszczenia (`POST /commands`,
+  typ `clean`) oraz lista żądań z `GET /commands` (od najnowszych) ze statusami:
+  Oczekuje / Wykonano / Odrzucono.
 - Motyw jasny/ciemny, responsywność, dostępność (WCAG AA), `prefers-reduced-motion`.
 
 ## Ograniczenia API i wynikające z nich decyzje
 
-- **Brak `GET /bridges`** — listę mostków i sensorów wyprowadzamy z ostatnich
-  pomiarów oraz komend.
-- **Brak `total`** — API zwraca offset z `has_more`; statystyki pulpitu liczone są
-  z wczytanej porcji (limit) i tak oznaczone w interfejsie.
-- **`ack` / `reject` wymagają klucza mostka** (nie admina), dlatego panel nie
-  potwierdza komend — pokazuje payload do przekazania i status. Rozstrzygnięcie
-  należy do mostka.
-- **`sent_at`** to czas z urządzenia (epoch s, UTC); w tabelach pokazujemy go w
-  czasie lokalnym przeglądarki, a wartość UTC w szczegółach.
+- **`ack` / `reject` wymagają klucza mostka** (nie admina), dlatego panel tylko
+  tworzy żądania `clean` i pokazuje ich status. Rozstrzygnięcie należy do mostka.
+- **Brak `total`** — API zwraca `count` i `has_more`. To prototyp zakładający mało
+  danych, więc panel pobiera pierwszą porcję (`limit=1000`) bez paginacji.
+- **`sent_at`** to czas z urządzenia (epoch s, UTC); w interfejsie pokazujemy go w
+  czasie lokalnym przeglądarki.
 
 ## Szybki start (dewelopersko)
 
@@ -123,16 +118,23 @@ assets/
   js/ui.js                     # DOM, toasty, modal, tabele, formaty
   js/icons.js                  # zestaw ikon SVG
   js/charts.js                 # wykresy Chart.js (leniwe ładowanie z CDN)
-  js/facets.js                 # bufor mostków/sensorów
-  js/views/                    # login, dashboard, measurements, commands,
-                               # bridges, settings
+  js/ranges.js                 # zakresy czasu i budowa serii wykresu
+  js/views/                    # login, overview (wykresy), cleaning
+tests/
+  ranges.test.mjs              # testy logiki zakresów i serii (node --test)
 deploy/nginx-pbl-web.conf      # serwowanie statyczne (bez proxy)
+```
+
+## Testy
+
+```bash
+node --test tests/     # logika zakresów czasu i budowy serii (bez zależności)
 ```
 
 ## Minimalizacja pamięci
 
 - **Serwer**: brak procesu aplikacyjnego — same pliki statyczne (nginx). Narzut RAM
   praktycznie zerowy.
-- **Przeglądarka**: paginacja zamiast ładowania całości, leniwe ładowanie widoków
-  i Chart.js, ograniczone serie wykresów, brak agresywnego odpytywania (ręczne
-  odświeżanie + opcjonalny interwał, pauza przy ukrytej karcie).
+- **Przeglądarka**: leniwe ładowanie widoków i Chart.js, jeden wykres na sensor,
+  brak agresywnego odpytywania (ręczne odświeżanie + opcjonalny interwał, pauza
+  przy ukrytej karcie).
