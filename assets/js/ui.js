@@ -36,18 +36,8 @@ export const clear = (el) => {
   return el;
 };
 
-export function debounce(fn, ms = 300) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), ms);
-  };
-}
-
 // --- Formaty -------------------------------------------------------------
 const dtMedium = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" });
-const dtFull = new Intl.DateTimeFormat("pl-PL", { dateStyle: "full", timeStyle: "medium" });
-const dOnly = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium" });
 const rtf = new Intl.RelativeTimeFormat("pl", { numeric: "auto" });
 
 export function parseISO(value) {
@@ -58,14 +48,6 @@ export function parseISO(value) {
 export function fmtDateTime(value) {
   const d = parseISO(value);
   return d ? dtMedium.format(d) : "—";
-}
-export function fmtFullDateTime(value) {
-  const d = parseISO(value);
-  return d ? dtFull.format(d) : "—";
-}
-export function fmtDate(value) {
-  const d = parseISO(value);
-  return d ? dOnly.format(d) : "—";
 }
 export function relTime(value) {
   const d = parseISO(value);
@@ -88,24 +70,10 @@ export function relTime(value) {
   }
   return rtf.format(-Math.round(diff / 31536000), "year");
 }
-export function fmtNum(value, digits = 2) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString("pl-PL", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-}
 export function fmtInt(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n.toLocaleString("pl-PL") : "—";
 }
-/** Do <input type="datetime-local"> potrzeba lokalnego czasu bez strefy. */
-export function toLocalInput(date) {
-  const d = date instanceof Date ? date : new Date(date);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
-    d.getMinutes()
-  )}`;
-}
-export const epochToDate = (epochSec) => new Date(Number(epochSec) * 1000);
 
 // --- Odznaki -------------------------------------------------------------
 // Kolory i etykiety statusów komend z API.
@@ -117,9 +85,6 @@ const STATUS_META = {
 export function statusBadge(status) {
   const meta = STATUS_META[status] || { label: status || "—", tone: "secondary" };
   return h("span", { class: `badge text-bg-${meta.tone}` }, meta.label);
-}
-export function badge(text, tone = "secondary") {
-  return h("span", { class: `badge text-bg-${tone}` }, text);
 }
 
 // --- Toasty --------------------------------------------------------------
@@ -304,10 +269,6 @@ export function table(columns, rows, { emptyText = "Brak danych." } = {}) {
   } else {
     for (const row of rows) {
       const tr = h("tr");
-      if (row.__click) {
-        tr.classList.add("cursor-pointer");
-        tr.addEventListener("click", row.__click);
-      }
       for (const c of columns) {
         const cell = h("td", { class: c.numeric ? "text-end" : null });
         append(cell, [row[c.key]]);
@@ -321,85 +282,4 @@ export function table(columns, rows, { emptyText = "Brak danych." } = {}) {
     { class: "table-responsive" },
     h("table", { class: "table table-sm table-hover align-middle mb-0" }, thead, tbody)
   );
-}
-
-// --- Paginacja -----------------------------------------------------------
-export function pager({ offset, limit, count, hasMore }, handlers = {}) {
-  const from = count ? offset + 1 : offset;
-  const to = offset + count;
-  return h(
-    "div",
-    { class: "pager" },
-    h("span", { class: "mono" }, count ? `Wiersze ${fmtInt(from)}–${fmtInt(to)}` : "Brak wierszy na tej stronie"),
-    h(
-      "div",
-      { class: "pager__nav" },
-      h(
-        "button",
-        {
-          class: "btn btn--sm",
-          type: "button",
-          disabled: offset <= 0 ? true : null,
-          onclick: () => handlers.onPrev && handlers.onPrev(),
-        },
-        icon("chevronLeft"),
-        "Poprzednie"
-      ),
-      h(
-        "button",
-        {
-          class: "btn btn--sm",
-          type: "button",
-          disabled: hasMore ? null : true,
-          onclick: () => handlers.onNext && handlers.onNext(),
-        },
-        "Następne",
-        icon("chevronRight")
-      )
-    )
-  );
-}
-
-// --- Kopiowanie ----------------------------------------------------------
-export function copyButton(getValue, label = "Kopiuj") {
-  return h(
-    "button",
-    {
-      class: "copy",
-      type: "button",
-      title: label,
-      "aria-label": label,
-      onclick: async (e) => {
-        e.stopPropagation();
-        const value = typeof getValue === "function" ? getValue() : getValue;
-        try {
-          await navigator.clipboard.writeText(String(value));
-          toast("Skopiowano do schowka.", { tone: "ok", timeout: 1800 });
-        } catch {
-          toast("Nie udało się skopiować.", { tone: "warn" });
-        }
-      },
-    },
-    icon("copy")
-  );
-}
-
-export function download(filename, content, type = "text/csv;charset=utf-8") {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = h("a", { href: url, download: filename });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-export function toCSV(rows, columns) {
-  const esc = (v) => {
-    const s = v === null || v === undefined ? "" : String(v);
-    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const head = columns.map((c) => esc(c.label)).join(",");
-  const body = rows.map((r) => columns.map((c) => esc(r[c.key])).join(",")).join("\n");
-  return head + "\n" + body;
 }
