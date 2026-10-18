@@ -1,0 +1,17 @@
+# Systemy / edytory
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Zależności i narzędzia (panel ich nie wymaga — brak build-stepu)
+node_modules/
+package-lock.json
+
+# Logi i pliki tymczasowe
+*.log
+/tmp/
+
+# Lokalne nadpisania konfiguracji (jeśli chcesz trzymać osobno od repo)
+config.local.js
