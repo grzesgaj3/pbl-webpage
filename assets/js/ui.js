@@ -108,34 +108,38 @@ export function toLocalInput(date) {
 export const epochToDate = (epochSec) => new Date(Number(epochSec) * 1000);
 
 // --- Odznaki -------------------------------------------------------------
+// Kolory i etykiety statusów komend z API.
 const STATUS_META = {
-  PENDING: { label: "Oczekuje", kind: "warn" },
-  ACKNOWLEDGED: { label: "Wykonano", kind: "ok" },
-  REJECTED: { label: "Odrzucono", kind: "danger" },
+  PENDING: { label: "Oczekuje", tone: "warning" },
+  ACKNOWLEDGED: { label: "Wykonano", tone: "success" },
+  REJECTED: { label: "Odrzucono", tone: "danger" },
 };
 export function statusBadge(status) {
-  const meta = STATUS_META[status] || { label: status || "—", kind: "plain" };
-  return h("span", { class: `badge badge--${meta.kind}` }, meta.label);
+  const meta = STATUS_META[status] || { label: status || "—", tone: "secondary" };
+  return h("span", { class: `badge text-bg-${meta.tone}` }, meta.label);
 }
-export function badge(text, kind = "plain") {
-  return h("span", { class: `badge badge--${kind}${kind === "plain" ? " badge--plain" : ""}` }, text);
+export function badge(text, tone = "secondary") {
+  return h("span", { class: `badge text-bg-${tone}` }, text);
 }
 
 // --- Toasty --------------------------------------------------------------
+// Bootstrap nie daje alertów z automatycznym znikaniem bez swojego JS-a,
+// więc używamy klas alertów i sami chowamy element po czasie.
+const TOAST_TONE = { ok: "success", danger: "danger", warn: "warning", info: "info" };
 const TOAST_ICON = { ok: "check", danger: "alert", warn: "alert", info: "info" };
 export function toast(message, { title, tone = "info", timeout = 5000 } = {}) {
   const host = document.getElementById("toasts");
   if (!host) return () => {};
   const el = h(
     "div",
-    { class: "toast", dataset: { tone }, role: "status" },
+    {
+      class: `alert alert-${TOAST_TONE[tone] || "info"} d-flex align-items-start gap-2 shadow-sm mb-0`,
+      dataset: { tone },
+      role: "status",
+    },
     icon(TOAST_ICON[tone] || "info"),
-    h("div", { class: "toast__text" }, title ? h("div", { class: "toast__title" }, title) : null, message),
-    h(
-      "button",
-      { class: "toast__close", type: "button", "aria-label": "Zamknij", onclick: () => remove() },
-      icon("close")
-    )
+    h("div", { class: "flex-grow-1" }, title ? h("div", { class: "fw-semibold" }, title) : null, message),
+    h("button", { class: "btn-close", type: "button", "aria-label": "Zamknij", onclick: () => remove() })
   );
   host.append(el);
   let timer = timeout ? setTimeout(remove, timeout) : null;
@@ -151,6 +155,7 @@ export function toast(message, { title, tone = "info", timeout = 5000 } = {}) {
 }
 
 // --- Modal ---------------------------------------------------------------
+// Bootstrapowy wygląd, ale pokazywanie/ukrywanie robimy sami (bez JS bundle'a).
 export function openModal({ title, body, footer, wide = false, onClose } = {}) {
   const root = document.getElementById("modal-root");
   const previouslyFocused = document.activeElement;
@@ -158,22 +163,33 @@ export function openModal({ title, body, footer, wide = false, onClose } = {}) {
 
   const modal = h(
     "div",
-    { class: `modal${wide ? " modal--wide" : ""}`, role: "dialog", "aria-modal": "true", "aria-labelledby": headingId },
+    {
+      class: "modal fade show d-block",
+      tabindex: "-1",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": headingId,
+    },
     h(
       "div",
-      { class: "modal__head" },
-      h("h2", { id: headingId }, title || ""),
+      { class: `modal-dialog modal-dialog-centered${wide ? " modal-lg" : ""}` },
       h(
-        "button",
-        { class: "iconbtn", type: "button", "aria-label": "Zamknij", onclick: () => close() },
-        icon("close")
+        "div",
+        { class: "modal-content" },
+        h(
+          "div",
+          { class: "modal-header" },
+          h("h5", { class: "modal-title", id: headingId }, title || ""),
+          h("button", { class: "btn-close", type: "button", "aria-label": "Zamknij", onclick: () => close() })
+        ),
+        h("div", { class: "modal-body" }, body || null),
+        footer ? h("div", { class: "modal-footer" }, footer) : null
       )
-    ),
-    h("div", { class: "modal__body" }, body || null),
-    footer ? h("div", { class: "modal__foot" }, footer) : null
+    )
   );
-  const overlay = h("div", { class: "modal-overlay", onclick: (e) => e.target === overlay && close() }, modal);
-  root.append(overlay);
+  const backdrop = h("div", { class: "modal-backdrop fade show", onclick: () => close() });
+  root.append(backdrop, modal);
+  document.body.classList.add("modal-open");
 
   function onKey(e) {
     if (e.key === "Escape") close();
@@ -187,7 +203,9 @@ export function openModal({ title, body, footer, wide = false, onClose } = {}) {
 
   function close() {
     document.removeEventListener("keydown", onKey);
-    overlay.remove();
+    backdrop.remove();
+    modal.remove();
+    document.body.classList.remove("modal-open");
     if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
     if (onClose) onClose();
   }
@@ -210,13 +228,17 @@ export function confirmDialog({
     };
     const { close } = openModal({
       title,
-      body: h("p", { class: "muted", style: { lineHeight: "1.55" } }, message),
+      body: h("p", { class: "text-body-secondary mb-0" }, message),
       footer: [
-        h("button", { class: "btn", type: "button", onclick: () => { done(false); close(); } }, cancelLabel),
+        h(
+          "button",
+          { class: "btn btn-outline-secondary", type: "button", onclick: () => { done(false); close(); } },
+          cancelLabel
+        ),
         h(
           "button",
           {
-            class: `btn ${danger ? "btn--danger" : "btn--primary"}`,
+            class: `btn ${danger ? "btn-danger" : "btn-primary"}`,
             type: "button",
             onclick: () => { done(true); close(); },
           },
@@ -232,19 +254,24 @@ export function confirmDialog({
 export function stateBlock({ iconName = "cloud", title, hint, action } = {}) {
   return h(
     "div",
-    { class: "state" },
-    h("div", { class: "state__icon" }, icon(iconName)),
-    title ? h("p", { class: "state__title" }, title) : null,
-    hint ? h("p", { class: "state__hint" }, hint) : null,
-    action || null
+    { class: "text-center text-body-secondary py-5 px-3" },
+    h("div", { class: "mb-2" }, icon(iconName, "fs-1")),
+    title ? h("p", { class: "fw-semibold text-body mb-1" }, title) : null,
+    hint ? h("p", { class: "small mb-0" }, hint) : null,
+    action ? h("div", { class: "mt-3" }, action) : null
   );
 }
 
-export function skeleton(rows = 5, cols = 5) {
-  const grid = h("div", { class: "skeleton" });
+export function skeleton(rows = 5) {
+  const grid = h("div", { class: "vstack gap-3 py-2", "aria-hidden": "true" });
   for (let i = 0; i < rows; i++) {
-    const width = 100 - i * (cols > 4 ? 4 : 2);
-    grid.append(h("div", { class: "sk-line", style: { width: `${Math.max(38, width)}%` } }));
+    grid.append(
+      h(
+        "div",
+        { class: "placeholder-glow" },
+        h("span", { class: "placeholder col-12 rounded", style: { display: "block", height: "1rem" } })
+      )
+    );
   }
   return grid;
 }
@@ -262,30 +289,38 @@ export function table(columns, rows, { emptyText = "Brak danych." } = {}) {
     h(
       "tr",
       {},
-      columns.map((c) =>
-        h("th", { class: c.numeric ? "num" : null, scope: "col" }, c.label)
-      )
+      columns.map((c) => h("th", { class: c.numeric ? "text-end" : null, scope: "col" }, c.label))
     )
   );
   const tbody = h("tbody");
   if (!rows.length) {
-    tbody.append(h("tr", { class: "is-empty" }, h("td", { colspan: columns.length }, emptyText)));
+    tbody.append(
+      h(
+        "tr",
+        {},
+        h("td", { class: "text-body-secondary", colspan: columns.length }, emptyText)
+      )
+    );
   } else {
     for (const row of rows) {
       const tr = h("tr");
       if (row.__click) {
-        tr.dataset.clickable = "";
+        tr.classList.add("cursor-pointer");
         tr.addEventListener("click", row.__click);
       }
       for (const c of columns) {
-        const cell = h("td", { class: c.numeric ? "num" : null });
+        const cell = h("td", { class: c.numeric ? "text-end" : null });
         append(cell, [row[c.key]]);
         tr.append(cell);
       }
       tbody.append(tr);
     }
   }
-  return h("div", { class: "table-wrap" }, h("table", { class: "data" }, thead, tbody));
+  return h(
+    "div",
+    { class: "table-responsive" },
+    h("table", { class: "table table-sm table-hover align-middle mb-0" }, thead, tbody)
+  );
 }
 
 // --- Paginacja -----------------------------------------------------------

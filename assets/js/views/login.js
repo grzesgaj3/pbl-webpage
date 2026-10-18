@@ -6,11 +6,17 @@ import { getApiBase, getApiKey, setApiKey } from "../store.js";
 import { listMeasurements, health } from "../api.js";
 
 export function renderLogin({ onAuthed }) {
-  const errorBox = h("div", { class: "form-error", hidden: true }, icon("alert"), h("span"));
+  const errorBox = h(
+    "div",
+    { class: "alert alert-danger py-2 small d-flex align-items-start gap-2", hidden: true },
+    icon("alert"),
+    h("span")
+  );
   const errorText = errorBox.querySelector("span");
 
   const keyInput = h("input", {
     id: "login-key",
+    class: "form-control",
     type: "password",
     autocomplete: "off",
     spellcheck: "false",
@@ -20,7 +26,7 @@ export function renderLogin({ onAuthed }) {
   });
   const submit = h(
     "button",
-    { class: "btn btn--primary btn--block", type: "submit" },
+    { class: "btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2", type: "submit" },
     icon("lock"),
     "Zaloguj"
   );
@@ -71,51 +77,65 @@ export function renderLogin({ onAuthed }) {
 
   const form = h(
     "form",
-    { class: "login__form", onsubmit: onSubmit },
-    h("div", { class: "field" }, h("label", { for: "login-key" }, "API key admina"), keyInput),
+    { onsubmit: onSubmit },
+    h(
+      "div",
+      { class: "mb-3" },
+      h("label", { class: "form-label", for: "login-key" }, "API key admina"),
+      keyInput
+    ),
     errorBox,
-    h("div", { class: "login__actions" }, submit)
+    submit
   );
 
   return h(
     "div",
-    { class: "login", role: "dialog", "aria-modal": "true", "aria-labelledby": "login-title" },
+    {
+      class: "d-flex align-items-center justify-content-center min-vh-100 p-3",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "login-title",
+    },
     h(
       "div",
-      { class: "login__card" },
+      { class: "card shadow-sm", style: { width: "100%", maxWidth: "26rem" } },
       h(
         "div",
-        { class: "login__brand" },
-        icon("droplet", "login__mark"),
+        { class: "card-body p-4" },
         h(
           "div",
-          {},
-          h("div", { class: "login__name" }, "STACJA"),
-          h("div", { class: "login__tag" }, "panel sieci deszczomierzy LoRa")
-        )
-      ),
-      h("h1", { id: "login-title" }, "Podaj API key admina"),
-      h(
-        "p",
-        { class: "login__lead" },
-        "Wpisz klucz administratora z konfiguracji API (ADMIN_API_KEY). Klucz obowiązuje tylko w tej sesji przeglądarki."
-      ),
-      !apiBase
-        ? h(
+          { class: "d-flex align-items-center gap-2 mb-3" },
+          icon("droplet", "fs-3 text-primary"),
+          h(
             "div",
-            { class: "form-error" },
-            icon("alert"),
-            h("span", {}, "Brak adresu API. Ustaw pole apiBase w pliku config.js.")
+            {},
+            h("div", { class: "fw-semibold lh-1" }, "STACJA"),
+            h("div", { class: "text-body-secondary small" }, "panel sieci deszczomierzy LoRa")
           )
-        : null,
-      form,
-      h(
-        "p",
-        { class: "hint", style: { marginTop: "16px" } },
-        h("span", { class: "muted" }, "API: "),
-        h("span", { class: "mono" }, apiBase || "— nie ustawiono —"),
-        h("br"),
-        "Adres ustawia się w pliku config.js."
+        ),
+        h("h1", { id: "login-title", class: "h4 mb-2" }, "Podaj API key admina"),
+        h(
+          "p",
+          { class: "text-body-secondary small" },
+          "Wpisz klucz administratora z konfiguracji API (ADMIN_API_KEY). Klucz obowiązuje tylko w tej sesji przeglądarki."
+        ),
+        !apiBase
+          ? h(
+              "div",
+              { class: "alert alert-warning py-2 small d-flex align-items-start gap-2" },
+              icon("alert"),
+              h("span", {}, "Brak adresu API. Ustaw pole apiBase w pliku config.js.")
+            )
+          : null,
+        form,
+        h(
+          "p",
+          { class: "text-body-secondary small mt-3 mb-0" },
+          "API: ",
+          h("span", { class: "mono" }, apiBase || "— nie ustawiono —"),
+          h("br"),
+          "Adres ustawia się w pliku config.js."
+        )
       )
     )
   );

@@ -33,28 +33,29 @@ export function loadChart() {
   return loading;
 }
 
-function cssVar(name, fallback = "#000") {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
-
+/** Kolory i fonty bierzemy z motywu Bootstrapa, żeby wykresy nie odstawawały. */
 export function themeColors() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => s.getPropertyValue(name).trim() || fallback;
   return {
-    accent: cssVar("--accent", "#0c6472"),
-    text: cssVar("--text", "#0b171c"),
-    soft: cssVar("--text-soft", "#516369"),
-    faint: cssVar("--text-faint", "#7b8c91"),
-    line: cssVar("--line", "#d5e0de"),
-    surface: cssVar("--surface", "#fff"),
+    primary: v("--bs-primary", "#0d6efd"),
+    text: v("--bs-body-color", "#212529"),
+    muted: v("--bs-secondary-color", "#6c757d"),
+    line: v("--bs-border-color", "#dee2e6"),
+    surface: v("--bs-body-bg", "#ffffff"),
+    mono: v("--bs-font-monospace", "ui-monospace, SFMono-Regular, monospace"),
   };
 }
 
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const MONO = (size = 11) => ({ family: "IBM Plex Mono", size });
+const font = (c, size = 11) => ({ family: c.mono, size });
+
+const fmtMm = (v) => `${Number(v).toFixed(2).replace(".", ",")} mm`;
+const dtTip = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" });
 
 function hexA(hex, alpha) {
   let h = String(hex).replace("#", "");
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length === 3) h = h.split("").map((ch) => ch + ch).join("");
   const n = parseInt(h, 16);
   if (!Number.isFinite(n)) return hex;
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
@@ -73,17 +74,13 @@ function baseOptions(c) {
         titleColor: c.surface,
         bodyColor: c.surface,
         padding: 10,
-        cornerRadius: 8,
+        cornerRadius: 6,
         displayColors: false,
-        titleFont: { family: "IBM Plex Sans", weight: "600" },
-        bodyFont: MONO(),
+        bodyFont: font(c),
       },
     },
   };
 }
-
-const fmtMm = (v) => `${Number(v).toFixed(2).replace(".", ",")} mm`;
-const dtTip = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium", timeStyle: "short" });
 
 /**
  * Wykres opadów jednego sensora w czasie.
@@ -101,15 +98,15 @@ export function sensorChart(canvas, points) {
       datasets: [
         {
           data: points,
-          borderColor: c.accent,
-          backgroundColor: hexA(c.accent, 0.14),
+          borderColor: c.primary,
+          backgroundColor: hexA(c.primary, 0.15),
           fill: true,
           borderWidth: 2,
-          tension: 0.28,
+          tension: 0.3,
           spanGaps: true,
           pointRadius: many ? 0 : 2.5,
           pointHoverRadius: 4,
-          pointBackgroundColor: c.accent,
+          pointBackgroundColor: c.primary,
           pointBorderColor: c.surface,
           pointBorderWidth: 1,
         },
@@ -142,13 +139,18 @@ export function sensorChart(canvas, points) {
           },
           grid: { display: false },
           border: { color: c.line },
-          ticks: { color: c.faint, font: MONO(), maxRotation: 0, autoSkipPadding: 16 },
+          ticks: { color: c.muted, font: font(c), maxRotation: 0, autoSkipPadding: 16 },
         },
         y: {
           beginAtZero: true,
           grid: { color: c.line, drawTicks: false },
           border: { display: false },
-          ticks: { color: c.faint, font: MONO(), padding: 8, callback: (v) => `${v} mm` },
+          ticks: {
+            color: c.muted,
+            font: font(c),
+            padding: 8,
+            callback: (v) => `${v} mm`,
+          },
         },
       },
     },

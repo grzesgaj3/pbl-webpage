@@ -1,4 +1,4 @@
-// Powłoka aplikacji, routing (hash), motyw, stan zdrowia API, auto-odświeżanie.
+// Powłoka aplikacji, routing (hash), motyw Bootstrapa, stan API, auto‑odświeżanie.
 import { h, clear, toast, confirmDialog } from "./ui.js";
 import { icon } from "./icons.js";
 import { getApiKey, clearApiKey, getTheme, setTheme, getRefresh, setRefresh } from "./store.js";
@@ -6,8 +6,18 @@ import { health, healthReady, listCommands } from "./api.js";
 import { renderLogin } from "./views/login.js";
 
 const ROUTES = {
-  overview: { title: "Wykresy", sub: "Opady z poszczególnych sensorów", icon: "droplet", load: () => import("./views/overview.js") },
-  cleaning: { title: "Czyszczenie", sub: "Żądania czyszczenia deszczomierzy", icon: "send", load: () => import("./views/cleaning.js") },
+  overview: {
+    title: "Wykresy",
+    sub: "Opady z poszczególnych sensorów",
+    icon: "droplet",
+    load: () => import("./views/overview.js"),
+  },
+  cleaning: {
+    title: "Czyszczenie",
+    sub: "Żądania czyszczenia deszczomierzy",
+    icon: "send",
+    load: () => import("./views/cleaning.js"),
+  },
 };
 const DEFAULT_ROUTE = "overview";
 
@@ -25,7 +35,7 @@ function resolvedTheme() {
 }
 function applyTheme() {
   const theme = resolvedTheme();
-  document.documentElement.dataset.theme = theme;
+  document.documentElement.setAttribute("data-bs-theme", theme);
   if (refs.themeBtn) {
     refs.themeBtn.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
     refs.themeBtn.title = theme === "dark" ? "Motyw jasny" : "Motyw ciemny";
@@ -75,10 +85,10 @@ async function mount() {
   document.title = `STACJA · ${meta.title}`;
   for (const a of refs.navLinks) {
     const isActive = a.dataset.route === route;
+    a.classList.toggle("active", isActive);
     if (isActive) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   }
-  closeNav();
 
   const mod = await meta.load();
   const view = mod.createView({
@@ -91,7 +101,7 @@ async function mount() {
     setRefresh: (sec) => {
       setRefresh(sec);
       restartRefresh();
-      toast(sec === "0" ? "Auto-odświeżanie wyłączone." : `Auto-odświeżanie: co ${sec} s.`, { tone: "ok" });
+      toast(sec === "0" ? "Auto‑odświeżanie wyłączone." : `Auto‑odświeżanie: co ${sec} s.`, { tone: "ok" });
     },
     logout,
   });
@@ -134,6 +144,9 @@ function restartRefresh() {
 }
 
 // --- Stan API ------------------------------------------------------------
+const PILL_TONE = { ok: "success", warn: "warning", danger: "danger" };
+const pillClass = (tone) => `badge rounded-pill pill text-bg-${PILL_TONE[tone] || "secondary"}`;
+
 async function refreshHealth() {
   if (!refs.healthPill) return;
   try {
@@ -149,6 +162,7 @@ async function refreshHealth() {
       note = `baza danych niedostępna (${err && err.status ? "HTTP " + err.status : (err && err.message) || "błąd"})`;
     }
     refs.healthPill.dataset.tone = tone;
+    refs.healthPill.className = pillClass(tone);
     clear(refs.healthPill);
     refs.healthPill.append(h("span", { class: "dot" }), label);
     refs.healthPill.title = `pbl-api ${(info && info.version) || ""} · ${new Date().toLocaleTimeString("pl-PL")} · ${note}`;
@@ -156,6 +170,7 @@ async function refreshHealth() {
     const reason =
       err && err.status ? `HTTP ${err.status} — ${err.message}` : (err && err.message) || "nieznany błąd";
     refs.healthPill.dataset.tone = "danger";
+    refs.healthPill.className = pillClass("danger");
     clear(refs.healthPill);
     refs.healthPill.append(h("span", { class: "dot" }), "brak połączenia");
     refs.healthPill.title = `Health check nieudany: ${reason}`;
@@ -170,7 +185,6 @@ async function refreshPendingBadge() {
     const n = page.count || 0;
     if (n > 0) {
       refs.cmdBadge.hidden = false;
-      refs.cmdBadge.dataset.tone = "warn";
       refs.cmdBadge.textContent = page.has_more ? "1+" : String(n);
     } else {
       refs.cmdBadge.hidden = true;
@@ -185,50 +199,39 @@ function navLink(route) {
   const meta = ROUTES[route];
   const link = h(
     "a",
-    { class: "nav__item", href: `#/${route}`, dataset: { route } },
+    {
+      class: "nav-link d-flex align-items-center gap-2",
+      href: `#/${route}`,
+      dataset: { route },
+    },
     icon(meta.icon),
     h("span", {}, meta.title)
   );
   if (route === "cleaning") {
-    link.append(h("span", { class: "nav__badge", hidden: true }));
+    link.append(h("span", { class: "badge rounded-pill text-bg-warning", hidden: true }));
   }
   return link;
 }
 
 function renderShell() {
   refs.navLinks = [];
-  const nav = h("nav", { class: "nav", "aria-label": "Nawigacja główna" });
+  const navList = h("ul", { class: "nav nav-pills flex-nowrap" });
   for (const route of Object.keys(ROUTES)) {
     const link = navLink(route);
     refs.navLinks.push(link);
-    nav.append(link);
-    if (route === "cleaning") refs.cmdBadge = link.querySelector(".nav__badge");
+    navList.append(h("li", { class: "nav-item" }, link));
+    if (route === "cleaning") refs.cmdBadge = link.querySelector(".badge");
   }
 
-  const rail = h(
-    "aside",
-    { class: "rail" },
-    h(
-      "div",
-      { class: "brand" },
-      icon("droplet", "brand__mark"),
-      h("div", { class: "brand__text" }, h("span", { class: "brand__name" }, "STACJA"), h("span", { class: "brand__sub" }, "panel opadów"))
-    ),
-    nav,
-    h(
-      "div",
-      { class: "rail__foot" },
-      h("span", { class: "rail__label" }, "Deszczomierze LoRa"),
-      h("span", { class: "rail__ver" }, "pbl-api · X-API-Key")
-    )
+  refs.healthPill = h(
+    "span",
+    { class: "badge rounded-pill pill text-bg-secondary", dataset: { tone: "" } },
+    h("span", { class: "dot" }),
+    "…"
   );
-
-  refs.title = h("h1", { id: "page-title" }, "Wykresy");
-  refs.sub = h("p", { id: "page-sub", class: "topbar__sub" }, "");
-  refs.healthPill = h("span", { class: "pill", dataset: { tone: "" } }, h("span", { class: "dot" }), "…");
   refs.themeBtn = h(
     "button",
-    { class: "iconbtn", type: "button", "aria-pressed": "false", "aria-label": "Przełącz motyw" },
+    { class: "btn btn-outline-secondary btn-sm", type: "button", "aria-pressed": "false", "aria-label": "Przełącz motyw" },
     icon("moon")
   );
   refs.themeBtn.addEventListener("click", () => {
@@ -237,47 +240,52 @@ function renderShell() {
   });
   const refreshBtn = h(
     "button",
-    { class: "iconbtn", type: "button", "aria-label": "Odśwież dane", title: "Odśwież" },
+    { class: "btn btn-outline-secondary btn-sm", type: "button", "aria-label": "Odśwież dane", title: "Odśwież" },
     icon("refresh")
   );
   refreshBtn.addEventListener("click", () => {
-    refreshBtn.animate?.([{ transform: "rotate(0)" }, { transform: "rotate(360deg)" }], { duration: 500 });
     refreshCurrent();
     refreshHealth();
     refreshPendingBadge();
   });
-  let logoutBtn = h(
+  const logoutBtn = h(
     "button",
-    { class: "iconbtn", type: "button", "aria-label": "Wyloguj", title: "Wyloguj" },
+    { class: "btn btn-outline-secondary btn-sm", type: "button", "aria-label": "Wyloguj", title: "Wyloguj" },
     icon("logout")
   );
   logoutBtn.addEventListener("click", logout);
 
-  const menuBtn = h(
-    "button",
-    { class: "iconbtn index-toggle", type: "button", "aria-label": "Otwórz menu" },
-    icon("menu")
+  const navbar = h(
+    "nav",
+    { class: "navbar navbar-expand bg-body border-bottom sticky-top" },
+    h(
+      "div",
+      { class: "container-xl flex-wrap gap-2" },
+      h(
+        "a",
+        { class: "navbar-brand d-flex align-items-center gap-2 me-2", href: `#/${DEFAULT_ROUTE}` },
+        icon("droplet"),
+        h("span", { class: "fw-semibold" }, "STACJA")
+      ),
+      navList,
+      h("div", { class: "d-flex align-items-center gap-2 ms-auto" }, refs.healthPill, refreshBtn, refs.themeBtn, logoutBtn)
+    )
   );
-  menuBtn.addEventListener("click", () => app.classList.toggle("is-nav-open"));
 
-  const topbar = h(
-    "header",
-    { class: "topbar" },
-    h("div", { class: "topbar__lead" }, menuBtn, h("div", { class: "topbar__title" }, refs.title, refs.sub)),
-    h("div", { class: "topbar__actions" }, refs.healthPill, refreshBtn, refs.themeBtn, logoutBtn)
-  );
-
-  refs.main = h("main", { id: "main", class: "main", tabindex: "-1" });
-  const scrim = h("div", { class: "scrim", onclick: () => closeNav() });
+  refs.title = h("h1", { id: "page-title", class: "h4 mb-0" }, ROUTES[DEFAULT_ROUTE].title);
+  refs.sub = h("p", { id: "page-sub", class: "text-body-secondary mb-0" }, "");
+  refs.main = h("div", { id: "main", tabindex: "-1" });
 
   clear(app);
-  app.dataset.phase = "ready";
-  app.classList.remove("is-nav-open");
-  app.append(rail, h("div", { class: "shell" }, topbar, refs.main), scrim);
-}
-
-function closeNav() {
-  app.classList.remove("is-nav-open");
+  app.append(
+    navbar,
+    h(
+      "main",
+      { class: "container-xl py-4" },
+      h("div", { class: "d-flex flex-wrap align-items-baseline gap-2 mb-3" }, refs.title, refs.sub),
+      refs.main
+    )
+  );
 }
 
 // --- Sesja ---------------------------------------------------------------
@@ -299,7 +307,6 @@ async function logout() {
 
 function renderLoginScreen() {
   clear(app);
-  app.dataset.phase = "login";
   app.append(
     renderLogin({
       onAuthed: async () => {
