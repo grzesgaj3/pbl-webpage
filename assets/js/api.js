@@ -100,3 +100,7 @@ export const getCommand = (id, signal) =>
   request(`/api/v1/commands/${encodeURIComponent(id)}`, { signal });
 export const createCommand = (body, signal) =>
   request("/api/v1/commands", { method: "POST", body, signal });
+
+// --- Stacje (tylko admin) ------------------------------------------------
+export const listBridges = (q, signal) => request("/api/v1/bridges", { query: q, signal });
+export const listSensors = (q, signal) => request("/api/v1/sensors", { query: q, signal });
